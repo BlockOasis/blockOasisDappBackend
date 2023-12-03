@@ -14,52 +14,23 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 def generate_dispute(json_router):
-    # def decode_dispute_input(data: RollupData):
-    #     """
-    #     Decodes the JSON payload from the RollupData object to extract fields required for handling a dispute.
-    #     Fields extracted include the claim ID, staking amount, and preparation CID.
+    """
+    Registers the dispute generation route and its handler in the provided JSON router.
 
-    #     Args:
-    #         data (RollupData): The RollupData object containing the JSON payload.
-
-    #     Returns:
-    #         dict: A dictionary containing the extracted fields: claim_id, staking_amount, and prep_CID.
-    #     """
-        
-    #     # Extracting fields from payload
-    #     decoded_data: dict = data.json_payload()
-
-    #     claim_id = decoded_data.get("claimID")
-    #     staking_amount = decoded_data.get("stakingAmount")
-    #     prep_CID = decoded_data.get("prep_CID")
-
-    #     """
-    #     Example Payload:
-    #     {
-    #         "handle": "dispute",
-    #         "claimID": "12345",
-    #         "stakingAmount": "400000000000000000",
-    #         "prep_CID": "QmExampleCID"
-    #     }
-    #     """
-
-    #     return {
-    #         "claim_id": claim_id,
-    #         "staking_amount": staking_amount,
-    #         "prep_CID": prep_CID,
-    #     }
-
+    Args:
+        json_router: The router object that manages JSON route handling.
+    """
+    
     def check_validator_stake(address: str, staking_amount: int):
         """
-        Checks if the validator's wallet has enough balance to cover the required stake amount.
-        Additionally, verifies if the provided staking amount matches the required validator staking amount.
-
+        Verifies if the disputing validator has enough funds to cover the staking amount.
+        
         Args:
             address (str): The wallet address of the validator.
-            staking_amount (int): The amount of stake provided for validation.
+            staking_amount (int): The staking amount for the dispute.
 
         Returns:
-            tuple: A tuple containing a boolean (True if conditions are met, False otherwise) and a message string.
+            (bool, str): A tuple with a boolean status and message.
         """
         
         try:
@@ -86,14 +57,14 @@ def generate_dispute(json_router):
 
     def check_claim_exists_and_verify_CID(claim_id: str, expected_prep_CID: str):
         """
-        Verifies if a claim exists in the database with the given ID and if it has the expected preparation CID.
+        Verifies the existence of the claim and matches its prep_CID.
 
         Args:
-            claim_id (str): The ID of the claim to check.
-            expected_prep_CID (str): The expected preparation CID associated with the claim.
+            claim_id (str): The ID of the claim.
+            expected_prep_CID (str): The expected preparation CID for the claim.
 
         Returns:
-            tuple: A tuple containing a boolean (True if claim exists with matching prep_CID, False otherwise) and a message string.
+            (bool, str): A tuple with a boolean status and message.
         """
         
         try:
@@ -117,14 +88,14 @@ def generate_dispute(json_router):
 
     def check_claim_eligible_for_dispute(claim_id: str, disputing_party_address: str):
         """
-        Checks if a claim is eligible for dispute by verifying its status and ensuring the claim is not raised by the disputing party.
+        Checks if the claim is eligible for dispute based on its status and the disputing party.
 
         Args:
-            claim_id (str): The ID of the claim to check.
-            disputing_party_address (str): The wallet address of the party initiating the dispute.
+            claim_id (str): The ID of the claim.
+            disputing_party_address (str): The wallet address of the disputing party.
 
         Returns:
-            tuple: A tuple containing a boolean (True if the claim is eligible for dispute, False otherwise) and a message string.
+            (bool, str): A tuple with a boolean status and message.
         """
         
         try:
@@ -149,14 +120,14 @@ def generate_dispute(json_router):
 
     def transfer_stake_to_locked_account(user_wallet_address: str, stake_amount: int):
         """
-        Transfers the required stake amount from the user's wallet to a locked account for staking purposes.
+        Transfers the staking amount from the user's wallet to a locked account.
 
         Args:
-            user_wallet_address (str): The wallet address of the user initiating the dispute.
-            stake_amount (int): The amount of stake to be transferred.
+            user_wallet_address (str): The wallet address of the user.
+            stake_amount (int): The staking amount to be transferred.
 
         Returns:
-            tuple: A tuple containing a boolean (True if the transfer is successful, False otherwise) and a message string.
+            (bool, str): A tuple with a boolean status and message.
         """
         
         try:
@@ -179,29 +150,22 @@ def generate_dispute(json_router):
     @json_router.advance({"handle": "dispute"})
     def handle_dispute(rollup: Rollup, data: RollupData):
         """
-        Handles the dispute request by executing several validation checks, transferring the required stake to a locked account,
-        and updating the claim status in the database to reflect the dispute.
+        Handles a dispute request based on the Rollup data.
 
         Args:
             rollup (Rollup): The Rollup context.
             data (RollupData): Data related to the dispute request.
 
         Returns:
-            bool: True if the dispute handling process is successful, False otherwise.
+            bool: True if the dispute handling is successful, False otherwise.
         """
 
         LOGGER.debug(f"Handling Dispute: {data}")
 
-        # Decode Input
-        payload = DisputeInput.parse_obj(data.json_payload())
-        # decoded = decode_dispute_input(data)
-        # claim_id, staking_amount, prep_CID = (
-        #     decoded["claim_id"],
-        #     decoded["staking_amount"],
-        #     decoded["prep_CID"],
-        # )
+        # Extract and validate dispute input
+        payload = DisputeInput.model_validate(data.json_payload())
 
-        # Check Balance for Validator Stake
+        # 1. Check Validator Stake
         disputing_party_address = data.metadata.msg_sender
         valid, message = check_validator_stake(disputing_party_address, payload.staking_amount)
         if not valid:
@@ -209,14 +173,14 @@ def generate_dispute(json_router):
             return False
         LOGGER.info("✅ Staking Amount Check")
 
-        # Check if Claim Exists and Verify prep_CID
+        # 2. Check Claim Exists and Verify CID
         valid, message = check_claim_exists_and_verify_CID(payload.claimID, payload.prep_CID)
         if not valid:
             rollup.report(to_jsonhex({"error": message}))
             return False
         LOGGER.info("✅ Claim and Preprocced CID Check")
 
-        # Check Claim Eligibility for Dispute
+        # 3. Check Claim Eligibility for Dispute
         valid, message = check_claim_eligible_for_dispute(
             payload.claimID, disputing_party_address
         )
@@ -224,7 +188,7 @@ def generate_dispute(json_router):
             rollup.report(to_jsonhex({"error": message}))
         LOGGER.info("✅ Claim Status Check")
 
-        # Transfer Balance to Lock Account
+        # 4. Transfer Stake to Locked Account
         valid, message = transfer_stake_to_locked_account(
             disputing_party_address, payload.staking_amount
         )
@@ -232,14 +196,14 @@ def generate_dispute(json_router):
             rollup.report(to_jsonhex({"error": message}))
         LOGGER.info("✅ Amount Stake Check")
 
-        # Initiate Dispute on Claim
+        # 5. Initiate Dispute on Claim
         updated_claim = claims_db.initiate_dispute(payload.claimID, disputing_party_address)
         if updated_claim is None:
             rollup.report(to_jsonhex({"error": "Failed to initiate dispute on claim"}))
             return False
         LOGGER.info("✅ Update Claim Check")
         
-        # Update user db of claimer
+        # 6. Update user db
         update_user = users_db.get_user(claims_db.get_claim(payload.claimID).user_address)
         update_user.open_disputes[payload.claimID] = None
         del update_user.open_claims[payload.claimID]
