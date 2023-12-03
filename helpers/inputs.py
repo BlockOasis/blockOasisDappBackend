@@ -1,10 +1,20 @@
 from pydantic import BaseModel
 from .setting import settings
 
-# {"handle": "claim","cidPrep": "QmdsL7GxAPRbYh9U7mG6ctnjhbChC7Yws4oriSxUafQ41R","cidComp": "QmdsL7GxAPRbYh9U7mG6ctnjhbChC7Yws4oriSxUafQ41R","coll": "1000000000000000000","compProof": "QmdsL7GxAPRbYh9U7mG6ctnjhbChC7Yws4oriSxUa"}
-
+# This file defines various input classes used for handling different actions in the system.
+# Each class inherits from BaseModel (from pydantic) for easy validation and data handling.
 
 class ClaimInput(BaseModel):
+    """
+    A class representing the input for creating a claim.
+
+    Attributes:
+        handle (str): The type of action, defaulted to "claim".
+        prep_CID (str): The preparation CID associated with the claim.
+        comp_CID (str): The computation CID associated with the claim.
+        collateral (int): The collateral amount for the claim.
+        computation_proof (str): The computation proof for the claim.
+    """
     handle: str = "claim"
     prep_CID: str
     comp_CID: str
@@ -12,44 +22,58 @@ class ClaimInput(BaseModel):
     computation_proof: str
 
 
-
 class WithdrawInput(BaseModel):
+    """
+    A class representing the input for withdrawing funds.
+
+    Attributes:
+        action (str): The type of action, defaulted to "withdraw".
+        amount (int): The amount to withdraw.
+    """
     action: str = "withdraw"
     amount: int
 
 
-"""
-{
-    "handle": "finalize",
-    "claimID": 12345,
-    "prep_CID": "QmExampleCID"
-}
-"""
-
-
 class FinalizeInput(BaseModel):
+    """
+    A class representing the input for finalizing a claim.
+
+    Attributes:
+        handle (str): The type of action, defaulted to "finalize".
+        claimID (int): The ID of the claim to be finalized.
+        prep_CID (str): The preparation CID of the claim.
+    """
     handle: str = "finalize"
     claimID: int
     prep_CID: str
 
 
 class ValidateInput(BaseModel):
+    """
+    A class representing the input for validating a claim.
+
+    Attributes:
+        handle (str): The type of action, defaulted to "validate".
+        claimID (int): The ID of the claim to be validated.
+        preprocessed_data (str): The preprocessed data associated with the claim.
+        computation_proof (str): The computation proof for the claim.
+    """
     handle: str = "validate"
     claimID: int
     preprocessed_data: str
     computation_proof: str
 
-"""
-Example Payload:
-{
-    "handle": "dispute",
-    "claimID": "12345",
-    "stakingAmount": "400000000000000000",
-    "prep_CID": "QmExampleCID"
-}
-"""
 
-class DisputeInput:
+class DisputeInput(BaseModel):
+    """
+    A class representing the input for disputing a claim.
+
+    Attributes:
+        handle (str): The type of action, defaulted to "dispute".
+        claimID (int): The ID of the claim to be disputed.
+        staking_amount (int): The staking amount for disputing, defaulted to the VALIDATOR_STAKING setting.
+        prep_CID (str): The preparation CID of the claim.
+    """
     handle: str = "dispute"
     claimID: int
     staking_amount: int = settings.VALIDATOR_STAKING
