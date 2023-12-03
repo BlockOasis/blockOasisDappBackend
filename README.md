@@ -46,7 +46,7 @@ Ensure your project structure and configuration files are set up as per Sunodo's
 Create a `.sunodo.env` configuration file in the project's root directory. Define your application's build and run commands here.
 
 Example `.sunodo.env`:
-```json
+```makefile
 SM_DEADLINE_ADVANCE_STATE=360000
 SM_DEADLINE_MACHINE=300000
 S6_CMD_WAIT_FOR_SERVICES_MAXTIME=60000
